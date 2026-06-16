@@ -1,25 +1,21 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { CartProvider } from './context/CartContext';
 import Home from './pages/Home';
-import Catalog from './pages/Catalog';
-import Header from './components/Header';
-import Footer from './components/Footer';
-import './App.css';
+import CartPage from './pages/CartPage';
+import CatalogPage from './pages/CatalogPage';
 
-const App: React.FC = () => {
+export default function App() {
   return (
-    <div className="app-root">
-      <Header />
-      <main className="container">
+    <CartProvider>
+      <Router>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/catalog" element={<Catalog />} />
-          
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/search" element={<CatalogPage />} />
+          <Route path="/category/:categoryId" element={<CatalogPage />} />
         </Routes>
-      </main>
-      <Footer />
-    </div>
+      </Router>
+    </CartProvider>
   );
-};
-
-export default App;
+}
