@@ -11,7 +11,7 @@ export default function Footer() {
           {/* Columna 1: Brand Info */}
           <div className="flex flex-col gap-6">
             <div className="flex items-center gap-3">
-              <img alt="Logo" className="h-8 w-8 opacity-80" src={logoUrl} />
+              <img alt="Logo" className="h-8 w-8 opacity-80" src="/favicon.svg"  />
               <span className="font-['EB_Garamond'] text-[32px] font-normal leading-[1.3] text-[#c5a059] tracking-tight">
                 Glass Therapy
               </span>

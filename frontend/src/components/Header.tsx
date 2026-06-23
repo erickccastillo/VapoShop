@@ -70,10 +70,10 @@ export default function Header() {
       <header className="sticky top-0 z-40 bg-[#121414]/90 backdrop-blur-md border-b border-[#4e4639]/10 px-[20px] md:px-[64px] py-4 flex items-center justify-between">
         
         {/* LOGO CON IMAGEN */}
-        <Link to="/" className="flex items-center gap-3 group">
+        <Link to="/store" className="flex items-center gap-3 group">
           <div className="w-10 h-10 border border-[#c5a059]/40 rounded-full flex items-center justify-center group-hover:border-[#c5a059] transition-colors p-1.5 overflow-hidden">
             <img 
-              src="./public/favicon.svg" 
+              src="/favicon.svg" 
               alt="Glass Therapy Logo" 
               className="w-full h-full object-contain"
               onError={(e) => {
@@ -90,7 +90,7 @@ export default function Header() {
           <form onSubmit={handleSearchSubmit} className="relative">
             <input
               type="text"
-              placeholder="Search our collection..."
+              placeholder="Busca nuestros productos..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setIsSearchFocused(true)}
@@ -126,7 +126,7 @@ export default function Header() {
           {/* BOTÓN CARRITO CON IMAGEN */}
           <button onClick={() => setIsCartOpen(true)} className="relative p-1 text-[#e2e2e2] hover:opacity-80 transition-opacity flex items-center justify-center">
             <img 
-              src="./public/cart.png" 
+              src="/cart.png" 
               alt="Shopping Bag" 
               className="w-6 h-6 object-contain" 
             />
@@ -141,7 +141,7 @@ export default function Header() {
           <div className="relative">
             <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-1 text-[#e2e2e2] hover:opacity-80 transition-opacity flex items-center justify-center">
               <img 
-                src="./public/more.png" 
+                src="/more.png" 
                 alt="Menu" 
                 className="w-6 h-6 object-contain" 
               />
@@ -178,14 +178,14 @@ export default function Header() {
             <div className="p-6 border-b border-[#4e4639]/10 flex items-center justify-between">
               <h3 className="font-['EB_Garamond'] text-2xl text-[#e2e2e2]">Tu Selección</h3>
               <button onClick={() => setIsCartOpen(false)} className="text-[#9a8f80] hover:text-[#e2e2e2]">
-                <span className="material-symbols-outlined">close</span>
+                <span className="material-symbols-outlined">Cerrar</span>
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar">
               {cart.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
-                  <span className="material-symbols-outlined text-5xl mb-2">auto_stories</span>
+                  <span className="material-symbols-outlined text-5xl mb-2"></span>
                   <p className="text-sm uppercase tracking-widest">El carrito está vacío</p>
                 </div>
               ) : (
@@ -197,7 +197,7 @@ export default function Header() {
                       <p className="text-xs text-[#c5a059] mt-1">${item.price} x {item.quantity}</p>
                     </div>
                     <button onClick={() => removeFromCart(item.id)} className="text-[#9a8f80] hover:text-red-400 self-center">
-                      <span className="material-symbols-outlined text-lg">delete</span>
+                      <span className="material-symbols-outlined text-lg">Eliminar</span>
                     </button>
                   </div>
                 ))

@@ -1,8 +1,15 @@
 // frontend/src/pages/Home.tsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import { useCart } from "../context/CartContext";
+import BongExperience from "../components/BongsExperience";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 
+// ==========================================
+// INTERFACES
+// ==========================================
 interface Product {
   id: number;
   name: string;
@@ -27,25 +34,116 @@ interface CategoryCollection {
   products: Product[];
 }
 
+// ==========================================
+// CONFIGURACIÓN Y CONSTANTES DEL CAROUSEL PREMIUM
+// ==========================================
+const PREMIUM_IMAGES = [
+  {
+    src: "https://images.unsplash.com/photo-1556997449-3ab5ca1828cb?q=80&w=600&auto=format&fit=crop",
+    bg: "#0B251A",
+    panel: "#143F2D",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1603036324350-02d28120b605?q=80&w=600&auto=format&fit=crop",
+    bg: "#1F1135",
+    panel: "#2E1A4E",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1517254456976-ee8682099819?q=80&w=600&auto=format&fit=crop",
+    bg: "#2B1A04",
+    panel: "#412807",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1563245372-f21724e3856d?q=80&w=600&auto=format&fit=crop",
+    bg: "#111111",
+    panel: "#222222",
+  },
+];
+
+const GRAIN_SVG = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='0.06'/></svg>`;
+
+const TRANSITION = "transform 650ms cubic-bezier(0.4,0,0.2,1), filter 650ms cubic-bezier(0.4,0,0.2,1), opacity 650ms cubic-bezier(0.4,0,0.2,1), left 650ms cubic-bezier(0.4,0,0.2,1), height 650ms cubic-bezier(0.4,0,0.2,1), bottom 650ms cubic-bezier(0.4,0,0.2,1)";
+
+function getRoleStyle(role: "center" | "left" | "right" | "back", isMobile: boolean): React.CSSProperties {
+  if (role === "center") {
+    return {
+      transform: `translateX(-50%) scale(${isMobile ? 1.2 : 1.55})`,
+      filter: "none",
+      opacity: 1,
+      zIndex: 20,
+      left: "50%",
+      height: isMobile ? "58%" : "88%",
+      bottom: isMobile ? "22%" : 0,
+    };
+  }
+  if (role === "left") {
+    return {
+      transform: "translateX(-50%) scale(0.95)",
+      filter: "blur(4px)",
+      opacity: 0.6,
+      zIndex: 10,
+      left: isMobile ? "15%" : "28%",
+      height: isMobile ? "16%" : "28%",
+      bottom: isMobile ? "32%" : "12%",
+    };
+  }
+  if (role === "right") {
+    return {
+      transform: "translateX(-50%) scale(0.95)",
+      filter: "blur(4px)",
+      opacity: 0.6,
+      zIndex: 10,
+      left: isMobile ? "85%" : "70%",
+      height: isMobile ? "16%" : "28%",
+      bottom: isMobile ? "32%" : "12%",
+    };
+  }
+  return {
+    transform: "translateX(-50%) scale(0.85)",
+    filter: "blur(8px)",
+    opacity: 0.3,
+    zIndex: 5,
+    left: "50%",
+    height: isMobile ? "13%" : "22%",
+    bottom: isMobile ? "32%" : "12%",
+  };
+}
+
+// ==========================================
+// COMPONENTE PRINCIPAL
+// ==========================================
 export default function Home() {
+  const navigate = useNavigate();
+  const { addToCart } = useCart();
+
   const [slides, setSlides] = useState<HeroSlide[]>([]);
   const [categories, setCategories] = useState<CategoryCollection[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Estados locales para la sección Carousel Integrada
+  const [premiumIndex, setPremiumIndex] = useState(0);
+  const [isAnimatingPremium, setIsAnimatingPremium] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Efecto de inicialización y fetching general
   useEffect(() => {
     // Cargar fuentes de Google
     const linkFonts = document.createElement("link");
-    linkFonts.href = "https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Hanken+Grotesk:wght@300;400;500;600;700&display=swap";
+    linkFonts.href = "https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Hanken+Grotesk:wght@300;400;500;600;700&family=Oswald:wght@400;700&display=swap";
     linkFonts.rel = "stylesheet";
     document.head.appendChild(linkFonts);
 
-    // Consultar el Backend local que actúa como puente a Supabase
-  const fetchData = async () => {
+    // Precargar imágenes del carrusel premium
+    PREMIUM_IMAGES.forEach(({ src }) => {
+      const img = new Image();
+      img.src = src;
+    });
+
+    const fetchData = async () => {
       try {
         setLoading(true);
 
-        // 1. Obtener de forma segura las credenciales desde tu archivo .env del frontend
         const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
         const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -53,14 +151,12 @@ export default function Home() {
           throw new Error("Faltan las variables de configuración de Supabase (.env) en el frontend");
         }
 
-        // 2. Definir las cabeceras requeridas por el API Gateway de Supabase
         const headers = {
           "apikey": SUPABASE_ANON_KEY,
           "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
           "Content-Type": "application/json"
         };
 
-        // 3. Modificar los endpoints locales por las URLs directas de la base de datos en la nube
         const slidesResponse = await fetch(
           `${SUPABASE_URL}/rest/v1/hero_slides?is_active=eq.true&order=id.asc`, 
           { headers }
@@ -78,7 +174,6 @@ export default function Home() {
         const slidesData = await slidesResponse.json();
         const categoriesData = await categoriesResponse.json();
 
-        // 4. Asignar los datos al estado tal cual como lo hacías antes
         setSlides(slidesData);
         setCategories(categoriesData);
       } catch (err: any) {
@@ -95,7 +190,15 @@ export default function Home() {
     };
   }, []);
 
-  // Lógica Slider
+  // Manejo de Responsividad Seguro (Anti errores SSR/Vite)
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 640);
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Lógica Slider Principal (Hero)
   const [currentSlide, setCurrentSlide] = useState<number>(0);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -135,7 +238,7 @@ export default function Home() {
     };
   }, [slides.length]);
 
-  // Lógica WebGL Shader Background
+  // Lógica WebGL Shader Background (Hero)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -229,6 +332,28 @@ export default function Home() {
     return () => cancelAnimationFrame(animationFrameId);
   }, []);
 
+  // Lógica Navegación del Carrusel Premium Integrado
+  const navigatePremium = useCallback(
+    (dir: "next" | "prev") => {
+      if (isAnimatingPremium) return;
+      setIsAnimatingPremium(true);
+      setPremiumIndex((prev) => (dir === "next" ? (prev + 1) % 4 : (prev + 3) % 4));
+      setTimeout(() => setIsAnimatingPremium(false), 650);
+    },
+    [isAnimatingPremium]
+  );
+
+  const center = premiumIndex;
+  const left = (premiumIndex + 3) % 4;
+  const right = (premiumIndex + 1) % 4;
+
+  function getPremiumRole(i: number): "center" | "left" | "right" | "back" {
+    if (i === center) return "center";
+    if (i === left) return "left";
+    if (i === right) return "right";
+    return "back";
+  }
+
   if (loading) {
     return (
       <div className="bg-[#121414] min-h-screen flex items-center justify-center text-[#c5a059]">
@@ -267,52 +392,232 @@ export default function Home() {
         .animate-fade-in-up { animation: fadeInUp 1s ease-out forwards; }
       `}} />
 
-      <Header />
 
       <main>
-        {/* Hero Section */}
-        {slides.length > 0 && (
-          <section className="relative h-[90vh] min-h-[700px] w-full overflow-hidden bg-[#0c0f0f]" id="hero">
-            <canvas id="shader-canvas" ref={canvasRef}></canvas>
+       
+       {/* NUEVA SECCIÓN: Premium Glassware Carousel */}
+        <section
+          style={{
+            backgroundColor: PREMIUM_IMAGES[premiumIndex].bg,
+            transition: "background-color 650ms cubic-bezier(0.4,0,0.2,1)",
+            position: "relative",
+            width: "100%",
+            overflow: "hidden",
+            borderTop: "1px solid rgba(255,255,255,0.03)",
+            borderBottom: "1px solid rgba(255,255,255,0.03)"
+          }}
+        >
+          <div style={{ position: "relative", width: "100%", height: "80vh", minHeight: "600px", overflow: "hidden" }}>
             
-            <div className="h-full w-full relative" id="hero-slider">
-              {slides.map((slide, index) => (
-                <div 
-                  key={slide.id} 
-                  className={`hero-slide absolute inset-0 flex items-center ${
-                    index === currentSlide ? 'active-slide' : 'inactive-slide'
-                  }`}
-                >
-                  <div className="absolute inset-0 z-0 after:content-[''] after:absolute after:inset-0 after:bg-gradient-to-r after:from-[#121414] after:via-[#121414]/40 after:to-transparent">
-                    <img alt={slide.alt_text} className="w-full h-full object-cover" src={slide.image_url} />
-                  </div>
-                  <div className="max-w-[1280px] mx-auto px-[20px] md:px-[64px] w-full relative z-20">
-                    <div className={`max-w-2xl ${index === currentSlide ? 'animate-fade-in-up' : ''}`}>
-                      <span className="text-[#c5a059] font-['Hanken_Grotesk'] text-[14px] font-medium tracking-[0.3em] mb-4 block opacity-80">{slide.tag}</span>
-                      <h1 className="font-['EB_Garamond'] text-[40px] md:text-[64px] font-normal leading-[1.2] md:leading-[1.1] tracking-[-0.01em] md:tracking-[-0.02em] text-[#e2e2e2] mb-6">{slide.title}</h1>
-                      <p className="text-[18px] font-normal leading-[1.6] text-[#d1c5b4]/80 mb-10 max-w-lg">{slide.description}</p>
-                      <div className="flex flex-wrap items-center gap-8">
-                        <span className="font-['EB_Garamond'] text-[32px] font-normal leading-[1.3] text-[#c5a059]">${slide.price}</span>
-                        <button className="px-12 py-4 bg-[#c5a059] text-[#412d00] font-['Hanken_Grotesk'] text-[14px] font-medium tracking-[0.2em] uppercase hover:bg-[#c5a059]/90 hover:shadow-[0_0_30px_rgba(197,160,89,0.3)] transition-all duration-500 active:scale-95">
-                          Añadir al Carrito
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            {/* Grain overlay */}
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                pointerEvents: "none",
+                zIndex: 50,
+                backgroundImage: `url("${GRAIN_SVG}")`,
+                backgroundSize: "200px 200px",
+                backgroundRepeat: "repeat",
+                opacity: 0.22, /* Reducido levemente para mayor nitidez y seriedad */
+              }}
+            />
+
+            {/* Giant ghost text */}
+            <div
+              style={{
+                position: "absolute",
+                insetInline: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                pointerEvents: "none",
+                userSelect: "none",
+                zIndex: 2,
+                top: "15%",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "Oswald, sans-serif",
+                  fontSize: "clamp(60px, 18vw, 260px)",
+                  fontWeight: 700,
+                  color: "#ffffff",
+                  opacity: 0.02, /* Más sutil para un acabado de ultra-lujo */
+                  lineHeight: 1,
+                  textTransform: "uppercase",
+                  letterSpacing: "-0.02em",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                THERAPY
+              </span>
             </div>
 
-            <div className="absolute bottom-12 right-[20px] md:right-[64px] z-30 flex gap-4">
-              <button className="w-14 h-14 rounded-full border border-[#9a8f80]/20 flex items-center justify-center hover:bg-[#c5a059] hover:border-[#c5a059] hover:text-[#412d00] transition-all duration-300 group" onClick={prevSlide}>
-                <span className="material-symbols-outlined transition-transform group-active:-translate-x-1">chevron_left</span>
-              </button>
-              <button className="w-14 h-14 rounded-full border border-[#9a8f80]/20 flex items-center justify-center hover:bg-[#c5a059] hover:border-[#c5a059] hover:text-[#412d00] transition-all duration-300 group" onClick={nextSlide}>
-                <span className="material-symbols-outlined transition-transform group-active:translate-x-1">chevron_right</span>
-              </button>
+            {/* Top-left brand label */}
+            <div
+              style={{
+                position: "absolute",
+                top: "2rem",
+                left: isMobile ? "1rem" : "4rem",
+                zIndex: 60,
+                fontSize: "0.75rem",
+                fontWeight: 500,
+                textTransform: "uppercase",
+                color: "#c5a059", /* Toque oro/crema sutil de tu paleta premium */
+                opacity: 0.85,
+                letterSpacing: "0.25em",
+              }}
+            >
+              GLASS THERAPY // PIEZAS Y PRODUCTOS
             </div>
-          </section>
-        )}
+
+            {/* Carousel items */}
+            <div style={{ position: "absolute", inset: 0, zIndex: 3 }}>
+              {PREMIUM_IMAGES.map((img, i) => {
+                const role = getPremiumRole(i);
+                const roleStyle = getRoleStyle(role, isMobile);
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      position: "absolute",
+                      aspectRatio: "0.6 / 1",
+                      transition: TRANSITION,
+                      willChange: "transform, filter, opacity",
+                      ...roleStyle,
+                    }}
+                  >
+                    <img
+                      src={img.src}
+                      alt={`Premium Product ${i + 1}`}
+                      draggable={false}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "contain",
+                        objectPosition: "bottom center",
+                        filter: "drop-shadow(0 25px 50px rgba(0,0,0,0.8))" /* Sombra pesada para dar seriedad */
+                      }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Bottom-left: text + nav buttons */}
+            <div
+              style={{
+                position: "absolute",
+                bottom: isMobile ? "2rem" : "4rem",
+                left: isMobile ? "1rem" : "4rem",
+                zIndex: 60,
+                maxWidth: "420px", /* Un poco más de espacio para el texto en español */
+              }}
+            >
+              <p
+                style={{
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  marginBottom: isMobile ? "0.5rem" : "1rem",
+                  fontSize: isMobile ? "1.1rem" : "1.5rem",
+                  color: "#e2e2e2",
+                  fontFamily: "'EB Garamond', serif" /* Cambio de fuente para mayor sofisticación y seriedad */
+                }}
+              >
+                Alta Cristalería de Colección
+              </p>
+              {!isMobile && (
+                <p
+                  style={{
+                    fontSize: "0.9rem",
+                    color: "#9a8f80",
+                    opacity: 0.9,
+                    lineHeight: 1.7,
+                    marginBottom: "1.5rem",
+                    fontWeight: 300,
+                    letterSpacing: "0.01em"
+                  }}
+                >
+                  Piezar de autor forjadas a mano en vidrio de borosilicato de alta densidad. Ingeniería de precisión diseñada para transformar el flujo de aire y elevar tu ritual diario a través de un filtrado óptimo y una estética arquitectónica atemporal.
+                </p>
+              )}
+              <div style={{ display: "flex", gap: "0.75rem" }}>
+                {(["prev", "next"] as const).map((dir) => (
+                  <button
+                    key={dir}
+                    onClick={() => navigatePremium(dir)}
+                    style={{
+                      width: isMobile ? "2.5rem" : "3rem",
+                      height: isMobile ? "2.5rem" : "3rem",
+                      borderRadius: "50%",
+                      background: "transparent",
+                      border: "1px solid rgba(255,255,255,0.15)", /* Bordes más finos y elegantes */
+                      color: "#e2e2e2",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "all 200ms ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "scale(1.05)";
+                      e.currentTarget.style.borderColor = "#c5a059";
+                      e.currentTarget.style.color = "#c5a059";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "scale(1)";
+                      e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
+                      e.currentTarget.style.color = "#e2e2e2";
+                    }}
+                  >
+                    {dir === "prev" ? <ArrowLeft size={18} /> : <ArrowRight size={18} />}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Bottom-right: SHOP COLLECTION link */}
+            <button
+              onClick={() => navigate("/CatalogPage")}
+              style={{
+            position: "absolute",
+            bottom: isMobile ? "1.5rem" : "5rem",
+            right: isMobile ? "1rem" : "2.5rem",
+            zIndex: 60,
+            display: "flex",
+            alignItems: "center",
+            fontFamily: "Oswald, sans-serif",
+            fontSize: "clamp(20px, 4vw, 52px)",
+            fontWeight: 700,
+            color: "white",
+            opacity: 0.9,
+            letterSpacing: "-0.01em",
+            lineHeight: 1,
+            textTransform: "uppercase",
+            textDecoration: "none",
+            transition: "opacity 200ms",
+          }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "#c5a059";
+                e.currentTarget.style.opacity = "1";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "#e2e2e2";
+                e.currentTarget.style.opacity = "0.9";
+              }}
+            >
+              EXPLORAR CATALOGO
+              <ArrowRight
+            style={{ marginLeft: isMobile ? "0.75rem" : "0.75rem" }}
+            size={isMobile ? 20 : 32}
+            strokeWidth={2.25}
+          />
+            </button>
+
+          </div>
+        </section>
 
         {/* ProductCategories Section */}
         <section className="py-32 bg-[#121414]" id="categories">
@@ -321,10 +626,13 @@ export default function Home() {
               <div key={category.id} className="space-y-12 category-section fade-ready" data-animate="true">
                 <div className="flex justify-between items-end border-b border-[#4e4639]/10 pb-6">
                   <h2 className="font-['EB_Garamond'] text-[40px] font-normal leading-[1.2] text-[#c5a059] tracking-tight">{category.title}</h2>
-                  <a className="text-[14px] font-medium tracking-[0.05em] text-[#d1c5b4] hover:text-[#c5a059] uppercase transition-all duration-300 flex items-center gap-2 group" href="#">
+                  <button 
+                    onClick={() => navigate(`/category/${category.id}`)}
+                    className="text-[14px] font-medium tracking-[0.05em] text-[#d1c5b4] hover:text-[#c5a059] uppercase transition-all duration-300 flex items-center gap-2 group bg-transparent border-none cursor-pointer"
+                  >
                     Ver Colección 
-                    <span className="material-symbols-outlined text-sm transition-transform group-hover:translate-x-1">arrow_forward</span>
-                  </a>
+                    <span className="material-symbols-outlined text-sm transition-transform group-hover:translate-x-1">→</span>
+                  </button>
                 </div>
                 
                 <div className="flex gap-[32px] overflow-x-auto no-scrollbar pb-10 -mx-4 px-4">
@@ -337,8 +645,11 @@ export default function Home() {
                           src={product.image_url} 
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-end p-6">
-                          <button className="w-full py-4 bg-[#c5a059] text-[#412d00] font-['Hanken_Grotesk'] text-[14px] font-medium tracking-[0.05em] uppercase transform translate-y-4 hover:translate-y-0 transition-transform duration-300">
-                            Quick Add
+                          <button 
+                            onClick={() => addToCart(product)}
+                            className="w-full py-4 bg-[#c5a059] text-[#412d00] font-['Hanken_Grotesk'] text-[14px] font-medium tracking-[0.05em] uppercase transform translate-y-4 hover:translate-y-0 transition-transform duration-300"
+                          >
+                            Añadir al carrito
                           </button>
                         </div>
                       </div>
@@ -351,7 +662,11 @@ export default function Home() {
             ))}
           </div>
         </section>
+
+
+
       </main>
+
       <Footer />
     </div>
   );

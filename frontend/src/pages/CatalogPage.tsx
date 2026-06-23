@@ -28,7 +28,7 @@ export default function CatalogPage() {
       setTitle(`Resultados para: "${searchQuery}"`);
     } else if (categoryId) {
       url += `&category_id=eq.${categoryId}`;
-      setTitle(`Colección Colección`);
+      setTitle(`Colección`);
     }
 
     fetch(url, { headers })
@@ -42,7 +42,7 @@ export default function CatalogPage() {
 
   return (
     <div className="bg-[#121414] text-[#e2e2e2] min-h-screen flex flex-col justify-between font-['Hanken_Grotesk']">
-      <Header />
+ 
       <main className="max-w-[1280px] mx-auto px-6 py-16 w-full flex-1">
         <h1 className="font-['EB_Garamond'] text-4xl text-[#c5a059] mb-12 border-b border-[#4e4639]/10 pb-4">{title}</h1>
 
